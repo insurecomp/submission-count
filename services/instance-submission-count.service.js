@@ -5,18 +5,17 @@ const {
   ScanCommand,
   QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
-
 let moment = require("moment");
 let numeral = require("numeral");
 const client = new DynamoDBClient({ region: "us-east-1" }); // Set your region
 const docClient = DynamoDBDocumentClient.from(client);
-const zlib = require("zlib");
 
 class instanceCountService {
   constructor() {}
 
+  //------------E3 Start Here----------------------//
   //Total Payroll Calculation
-  icomppayrollCalculation = (childrenLoc) => {
+  e3payrollCalculation = (childrenLoc) => {
     let totalPayroll = 0;
     for (const key in childrenLoc) {
       const classes = childrenLoc[key].classCodesInfo;
@@ -36,37 +35,6 @@ class instanceCountService {
       sum += obj[key].total_standard_premium;
     }
     return sum;
-  };
-
-  // Fetch Pibit Company Name
-  fetchPibitCompanyName = async (partitionKey) => {
-    if (!partitionKey) {
-      return 0;
-    }
-    const params = {
-      TableName: "E3UserTable",
-      KeyConditionExpression: "#id = :user_email_id",
-      ExpressionAttributeNames: {
-        "#id": "user_email_id",
-      },
-      ExpressionAttributeValues: {
-        ":user_email_id": partitionKey,
-      },
-      ScanIndexForward: false,
-      Limit: 1,
-    };
-    try {
-      const data = await docClient.send(new QueryCommand(params)); // Use QueryCommand with the send() method
-      if (data.Items[0]?.companyProfile) {
-        let companyName = data.Items[0]?.companyProfile?.companyName?.value;
-        return companyName;
-      } else {
-        return await getE3companyNameUserStatus(partitionKey);
-      }
-    } catch (error) {
-      console.error("Error fetching Pibit company name:", error);
-      throw new Error("Error fetching company name");
-    }
   };
 
   // Fetch E3 HR Data from User Status Data
@@ -102,9 +70,34 @@ class instanceCountService {
     }
   };
 
-  //ICOMP Coloumn & Row setting
-  icompCalculate = async (item) => {
+  //get Pibit OCR Date
+  getPibitOCRdate = async (userID) => {
+    try {
+      const params = {
+        TableName: "E3PibitOcrTrigger",
+        IndexName: "userID-index",
+        KeyConditionExpression: "userID = :userID",
+        ExpressionAttributeValues: {
+          ":userID": userID,
+        },
+      };
+      const command = new QueryCommand(params);
+      const response = await docClient.send(command);
+      let date = response.Items[0]?.createdTimestamp;
+      let e3CreatedDate = date
+        ? moment(date + "000", ["x"]).format("MM-DD-YYYY")
+        : "";
+      return e3CreatedDate;
+    } catch (error) {
+      console.error("Error fetching items:", error);
+      return [];
+    }
+  };
+
+  //E3 Coloumn & Row setting
+  e3RowCalculate = async (item) => {
     let obj = {};
+    obj["Unique Id"] = item?.user_email_id;
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
     obj["Total Premium"] = await this.fetchE3UserStatusData(
@@ -124,18 +117,21 @@ class instanceCountService {
     obj["Status"] = e3Status;
     obj["PEO"] = "E3 HR";
     obj["Total Payroll"] = item?.childrenLoc
-      ? this.icomppayrollCalculation(item?.childrenLoc)
-      : "$0";
+      ? this.e3payrollCalculation(item?.childrenLoc)
+      : 0;
     obj["Created Date"] = item?.uploadTimestamp
       ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
       : "";
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
-    console.log(obj);
+    obj["LossRun Uploaded Date"] = await this.getPibitOCRdate(
+      item?.user_email_id
+    );
+    // console.log(obj);
     return obj;
   };
 
-  //Table Scaning function for Libertate
-  async getAllIcompData(instanceType) {
+  //Table Scaning function for E3
+  async getAllE3Data(instanceType) {
     try {
       let tableName = "E3UserTable";
       let params = { TableName: tableName };
@@ -146,9 +142,7 @@ class instanceCountService {
         dbResponse = await docClient.send(new ScanCommand(params));
         for (let item of dbResponse.Items) {
           if (item?.companyProfile?.companyName?.value) {
-            finalResponse.push(await this.icompCalculate(item));
-          } else {
-            finalResponse.push(await this.icompCalculate(item));
+            finalResponse.push(await this.e3RowCalculate(item));
           }
         }
         params.ExclusiveStartKey = dbResponse.LastEvaluatedKey;
@@ -161,9 +155,10 @@ class instanceCountService {
     }
   }
 
-  async downloadIcompData(instanceType) {
+  //Feching E3 Data
+  async downloadE3Data(instanceType) {
     try {
-      let finalResponse = await this.getAllIcompData(instanceType);
+      let finalResponse = await this.getAllE3Data(instanceType);
       return finalResponse;
     } catch (error) {
       console.error("Error in API:", error);
@@ -171,10 +166,12 @@ class instanceCountService {
     }
   }
 
+  //------------E3 END Here----------------------//
+
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
       if (type === "e3") {
-        const response = await this.downloadIcompData(type);
+        const response = await this.downloadE3Data(type);
         reply.send(response);
       }
     } catch (error) {
