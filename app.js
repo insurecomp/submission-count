@@ -12,7 +12,7 @@ downloadInstanceData.registerRoutes();
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000 });
+    await fastify.listen({ port: 3000, host: "0.0.0.0" });
     console.log("server listening on 3000");
   } catch (err) {
     console.error(err);
