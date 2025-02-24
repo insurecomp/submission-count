@@ -168,10 +168,68 @@ class instanceCountService {
 
   //------------E3 END Here----------------------//
 
+  //-------------Extensis Start Here--------------------//
+
+  //Creating Extensis Data
+  extensisCalculate = async (item) => {
+    let obj = {};
+    obj["Opportunity ID"] = item?.opportunity_id || "";
+    obj["Effective Date"] = item?.effective_date || "";
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
+    obj["FEIN"] = item?.companyProfile?.fein?.value || "";
+    let status = item?.status;
+    if (item.existing === "true") {
+      status = "Bound";
+    } else if (status === "sent_to_salesforce") {
+      status = "To Salesforce";
+    } else if (status === "quote_generated") {
+      status = "In Progress";
+    } else {
+      status = "Submitted";
+    }
+    obj["Status"] = status;
+    obj["Total Payroll"] = item?.payrollData
+      ? this.e3payrollCalculation(item?.payrollData)
+      : "$0";
+    obj["Created Date"] = item?.uploadTimestamp
+      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
+      : "";
+    obj["Agent Name"] = item?.modifiedByName || "";
+    obj["Agenct Email"] = item?.modifiedBy || "";
+    obj["Type"] = "New Business";
+    console.log(obj);
+    return obj;
+  };
+
+  async downloadExtensisData() {
+    let finalResponse = [];
+    let params = {
+      TableName: "ExtensisOpportunityData",
+    };
+
+    try {
+      let data;
+      do {
+        data = await docClient.send(new ScanCommand(params));
+        for (let item of data.Items) {
+          finalResponse.push(await this.extensisCalculate(item));
+        }
+        params.ExclusiveStartKey = data.LastEvaluatedKey;
+      } while (typeof data.LastEvaluatedKey !== "undefined");
+      return finalResponse;
+    } catch (error) {
+      console.error("Error fetching items from DynamoDB:", error);
+      return [];
+    }
+  }
+
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
       if (type === "e3") {
         const response = await this.downloadE3Data(type);
+        reply.send(response);
+      } else if (type === "extensis") {
+        const response = await this.downloadExtensisData();
         reply.send(response);
       }
     } catch (error) {
