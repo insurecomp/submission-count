@@ -13,9 +13,8 @@ const docClient = DynamoDBDocumentClient.from(client);
 class instanceCountService {
   constructor() {}
 
-  //------------E3 Start Here----------------------//
-  //Total Payroll Calculation
-  e3payrollCalculation = (childrenLoc) => {
+  //Total Payroll Calculation for E3,EXTENSIS
+  payrollCalculation = (childrenLoc) => {
     let totalPayroll = 0;
     for (const key in childrenLoc) {
       const classes = childrenLoc[key].classCodesInfo;
@@ -27,6 +26,8 @@ class instanceCountService {
     }
     return totalPayroll;
   };
+
+  //------------E3 Start Here----------------------//
 
   //calculate Payroll
   getE3TotalPremium = (obj) => {
@@ -117,15 +118,13 @@ class instanceCountService {
     obj["Status"] = e3Status;
     obj["PEO"] = "E3 HR";
     obj["Total Payroll"] = item?.childrenLoc
-      ? this.e3payrollCalculation(item?.childrenLoc)
+      ? this.payrollCalculation(item?.childrenLoc)
       : 0;
     obj["Created Date"] = item?.uploadTimestamp
       ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
       : "";
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
-    obj["LossRun Uploaded Date"] = await this.getPibitOCRdate(
-      item?.user_email_id
-    );
+    obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
     // console.log(obj);
     return obj;
   };
@@ -189,7 +188,7 @@ class instanceCountService {
     }
     obj["Status"] = status;
     obj["Total Payroll"] = item?.payrollData
-      ? this.e3payrollCalculation(item?.payrollData)
+      ? this.payrollCalculation(item?.payrollData)
       : "$0";
     obj["Created Date"] = item?.uploadTimestamp
       ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
@@ -223,6 +222,10 @@ class instanceCountService {
     }
   }
 
+  //-------------Extensis END Here--------------------//
+
+  //-------------IES Start Here---------------------//
+
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
       if (type === "e3") {
@@ -231,6 +234,8 @@ class instanceCountService {
       } else if (type === "extensis") {
         const response = await this.downloadExtensisData();
         reply.send(response);
+      } else if (type === "ies") {
+        const response = await this.downloadIESData();
       }
     } catch (error) {
       console.error(`Error while Fetching ${request.params.type} data:`, error);
