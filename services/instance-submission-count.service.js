@@ -226,6 +226,99 @@ class instanceCountService {
 
   //-------------IES Start Here---------------------//
 
+  fetchIESpibitOCR = async (userID) => {
+    try {
+      const params = {
+        TableName: "PibitOcrTriggerProd",
+        IndexName: "userID-index",
+        KeyConditionExpression: "userID = :userID",
+        ExpressionAttributeValues: {
+          ":userID": userID,
+        },
+      };
+      const command = new QueryCommand(params);
+      const response = await docClient.send(command);
+      let date = response.Items[0]?.createdTimestamp;
+      let e3CreatedDate = date
+        ? moment(date + "000", ["x"]).format("MM-DD-YYYY")
+        : "";
+      return e3CreatedDate;
+    } catch (error) {
+      console.error("Error fetching items:", error);
+      return [];
+    }
+  };
+
+  iesorLibCalculate = async (item, instanceType) => {
+    let obj = {};
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
+    obj["FEIN"] = item?.companyProfile?.fein?.value || "";
+    let status;
+    let dbStatus = item?.status || "";
+    if (dbStatus === "quote_generated" || dbStatus === "view_proposal") {
+      status = "Quote Generated";
+    } else if (dbStatus === "company_profile") {
+      status = "Underwriting Page";
+    } else {
+      status = "API";
+    }
+    obj["Status"] = status;
+    obj["PEO"] = item?.peoDetails?.selectedPeo || "";
+    obj["Total Payroll"] = item?.childrenLoc
+      ? this.payrollCalculation(item?.childrenLoc)
+      : "$0";
+
+    obj["Created Date"] = item?.uploadTimestamp
+      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
+      : "";
+
+    if (instanceType === "ies") {
+      let lossRunData = await this.fetchIESpibitOCR(item?.user_email_id);
+      obj["LossRun"] = lossRunData ? "YES" : "NO";
+      obj["lossRun Date"] = lossRunData ? lossRunData : "";
+    }
+    console.log(obj);
+    return obj;
+  };
+
+  async downloadIESorLibertateData(instanceType) {
+    let finalResponse;
+    let libResponse = [];
+    let iesResponse = [];
+    let params = {
+      TableName: "Icomp2UserTable",
+    };
+
+    try {
+      let data;
+      do {
+        data = await docClient.send(new ScanCommand(params));
+        for (let item of data.Items) {
+          if (
+            instanceType === "ies" &&
+            (item.origin_instance === "ies" || item.salesforceData)
+          ) {
+            iesResponse.push(await this.iesorLibCalculate(item, instanceType));
+          } else {
+            libResponse.push(await this.iesorLibCalculate(item, instanceType));
+          }
+        }
+        params.ExclusiveStartKey = data.LastEvaluatedKey;
+      } while (typeof data.LastEvaluatedKey !== "undefined");
+
+      if (instanceType === "ies") {
+        finalResponse = iesResponse;
+      } else {
+        finalResponse = libResponse;
+      }
+
+      return finalResponse;
+    } catch (error) {
+      console.error("Error fetching items from DynamoDB:", error);
+      reply.code(500).send("Error fetching items from DynamoDB:", error);
+    }
+  }
+
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
       if (type === "e3") {
@@ -235,11 +328,12 @@ class instanceCountService {
         const response = await this.downloadExtensisData();
         reply.send(response);
       } else if (type === "ies") {
-        const response = await this.downloadIESData();
+        const response = await this.downloadIESorLibertateData(type);
+        reply.send(response);
       }
     } catch (error) {
       console.error(`Error while Fetching ${request.params.type} data:`, error);
-      reply.code(500).send(`Error while Fetching ${request.params.type} data.`);
+      return [];
     }
   }
 }
