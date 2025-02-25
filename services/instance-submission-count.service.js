@@ -310,8 +310,8 @@ class instanceCountService {
 
     if (instanceType === "ies") {
       let lossRunData = await this.fetchIESpibitOCR(item?.user_email_id);
-      obj["Loss Run"] = lossRunData ? "YES" : "NO";
-      obj["loss Run Date"] = lossRunData ? lossRunData : "NULL";
+      obj["LossRun"] = lossRunData ? "YES" : "NO";
+      obj["lossRun Date"] = lossRunData ? lossRunData : "NULL";
     }
     console.log(obj);
     return obj;
