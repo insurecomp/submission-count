@@ -27,6 +27,38 @@ class instanceCountService {
     return totalPayroll;
   };
 
+  governingStateandClassCode = (childrenLoc) => {
+    let obj = {};
+    for (let key in childrenLoc) {
+      let childrenLocObject = childrenLoc[key];
+      let nextedChildernObject = childrenLocObject.classCodesInfo;
+      let sum = 0;
+      for (let ele in nextedChildernObject) {
+        let payroll = Number(
+          nextedChildernObject[ele].payroll.value.replace(/[\$,]/g, "")
+        );
+        sum += payroll;
+      }
+      let state = childrenLocObject.state.value;
+      obj[state] = sum;
+    }
+
+    // Find the state with the highest value
+    let maxState = null;
+    let maxPayroll = -Infinity;
+
+    for (let state in obj) {
+      if (obj[state] > maxPayroll) {
+        maxPayroll = obj[state];
+        maxState = state;
+      }
+    }
+
+    let result = [maxState, maxPayroll];
+    // console.log(result);
+    return result;
+  };
+
   //------------E3 Start Here----------------------//
 
   //calculate Payroll
@@ -125,7 +157,15 @@ class instanceCountService {
       : "";
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
     obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
-    // console.log(obj);
+    obj["Governing State"] =
+      this.governingStateandClassCode(item?.childrenLoc)?.[0] || "Null";
+    obj["Governing ClassCode"] =
+      this.governingStateandClassCode(item?.childrenLoc)?.[1] || "Null";
+    obj["Description of Operation"] =
+      item?.companyProfile?.descriptionOfOperations?.value || "null";
+    obj["Expiry Date"] =
+      item?.companyProfile?.expectedExpiryDate?.value || "null";
+    console.log(obj);
     return obj;
   };
 
@@ -168,8 +208,6 @@ class instanceCountService {
   //------------E3 END Here----------------------//
 
   //-------------Extensis Start Here--------------------//
-
-  //Creating Extensis Data
   extensisCalculate = async (item) => {
     let obj = {};
     obj["Opportunity ID"] = item?.opportunity_id || "";
@@ -221,11 +259,9 @@ class instanceCountService {
       return [];
     }
   }
-
   //-------------Extensis END Here--------------------//
 
   //-------------IES Start Here---------------------//
-
   fetchIESpibitOCR = async (userID) => {
     try {
       const params = {
@@ -274,8 +310,8 @@ class instanceCountService {
 
     if (instanceType === "ies") {
       let lossRunData = await this.fetchIESpibitOCR(item?.user_email_id);
-      obj["LossRun"] = lossRunData ? "YES" : "NO";
-      obj["lossRun Date"] = lossRunData ? lossRunData : "";
+      obj["Loss Run"] = lossRunData ? "YES" : "NO";
+      obj["loss Run Date"] = lossRunData ? lossRunData : "NULL";
     }
     console.log(obj);
     return obj;
@@ -318,6 +354,7 @@ class instanceCountService {
       reply.code(500).send("Error fetching items from DynamoDB:", error);
     }
   }
+  //-------------IES END Here---------------------//
 
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
