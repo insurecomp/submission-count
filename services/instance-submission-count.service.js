@@ -154,9 +154,9 @@ class instanceCountService {
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
     obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
     obj["GoverningState"] =
-      this.getHighestPayrollDetails(item?.childrenLoc)?.[0] || "Null";
-    obj["GoverningCC"] =
       this.getHighestPayrollDetails(item?.childrenLoc)?.[1] || "Null";
+    obj["GoverningCC"] =
+      this.getHighestPayrollDetails(item?.childrenLoc)?.[0] || "Null";
     obj["Description"] =
       item?.companyProfile?.descriptionOfOperations?.value || "null";
     obj["ExpiryDate"] =
