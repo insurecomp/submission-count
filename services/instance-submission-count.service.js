@@ -27,37 +27,33 @@ class instanceCountService {
     return totalPayroll;
   };
 
-  governingStateandClassCode = (childrenLoc) => {
-    let obj = {};
+  getHighestPayrollDetails(childrenLoc) {
+    let maxPayroll = -Infinity;
+    let maxClassCode = null;
+    let maxState = null;
+
     for (let key in childrenLoc) {
       let childrenLocObject = childrenLoc[key];
-      let nextedChildernObject = childrenLocObject.classCodesInfo;
-      let sum = 0;
-      for (let ele in nextedChildernObject) {
-        let payroll = Number(
-          nextedChildernObject[ele].payroll.value.replace(/[\$,]/g, "")
-        );
-        sum += payroll;
-      }
+      let classCodes = childrenLocObject.classCodesInfo;
       let state = childrenLocObject.state.value;
-      obj[state] = sum;
-    }
 
-    // Find the state with the highest value
-    let maxState = null;
-    let maxPayroll = -Infinity;
+      for (let ele in classCodes) {
+        let payroll = Number(
+          classCodes[ele].payroll.value.replace(/[\$,]/g, "")
+        );
+        let classCode =
+          classCodes[ele].classCodeDescription.value.split(":")[0]; // Extract class code
 
-    for (let state in obj) {
-      if (obj[state] > maxPayroll) {
-        maxPayroll = obj[state];
-        maxState = state;
+        if (payroll > maxPayroll) {
+          maxPayroll = payroll;
+          maxClassCode = classCode;
+          maxState = state;
+        }
       }
     }
 
-    let result = [maxState, maxPayroll];
-    // console.log(result);
-    return result;
-  };
+    return [maxClassCode, maxState];
+  }
 
   //------------E3 Start Here----------------------//
 
@@ -143,7 +139,7 @@ class instanceCountService {
     } else if (formstage === "three") {
       e3Status = "Pricing Requested";
     } else if (formstage === "four") {
-      e3Status = "Pricing Aviable";
+      e3Status = "Pricing Available";
     } else if (formstage === "five") {
       e3Status = "View Proposal";
     }
@@ -157,14 +153,18 @@ class instanceCountService {
       : "";
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
     obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
-    obj["Governing State"] =
-      this.governingStateandClassCode(item?.childrenLoc)?.[0] || "Null";
-    obj["Governing ClassCode"] =
-      this.governingStateandClassCode(item?.childrenLoc)?.[1] || "Null";
-    obj["Description of Operation"] =
+    obj["GoverningState"] =
+      this.getHighestPayrollDetails(item?.childrenLoc)?.[0] || "Null";
+    obj["GoverningCC"] =
+      this.getHighestPayrollDetails(item?.childrenLoc)?.[1] || "Null";
+    obj["Description"] =
       item?.companyProfile?.descriptionOfOperations?.value || "null";
-    obj["Expiry Date"] =
+    obj["ExpiryDate"] =
       item?.companyProfile?.expectedExpiryDate?.value || "null";
+    obj["EffectiveDate"] = item?.companyProfile?.effectiveDate?.value || "null";
+    obj["AgentName"] = item?.modifiedBy
+      ? item?.modifiedBy.split("@")[0]
+      : "Null";
     console.log(obj);
     return obj;
   };
