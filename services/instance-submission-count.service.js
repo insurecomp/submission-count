@@ -318,11 +318,16 @@ class instanceCountService {
   };
 
   async downloadIESorLibertateData(instanceType) {
-    let finalResponse;
-    let libResponse = [];
     let iesResponse = [];
     let params = {
       TableName: "Icomp2UserTable",
+      FilterExpression: "#origin = :ies OR attribute_exists(salesforceData)",
+      ExpressionAttributeNames: {
+        "#origin": "origin_instance",
+      },
+      ExpressionAttributeValues: {
+        ":ies": "ies",
+      },
     };
 
     try {
@@ -330,28 +335,14 @@ class instanceCountService {
       do {
         data = await docClient.send(new ScanCommand(params));
         for (let item of data.Items) {
-          if (
-            instanceType === "ies" &&
-            (item.origin_instance === "ies" || item.salesforceData)
-          ) {
-            iesResponse.push(await this.iesorLibCalculate(item, instanceType));
-          } else {
-            libResponse.push(await this.iesorLibCalculate(item, instanceType));
-          }
+          iesResponse.push(await this.iesorLibCalculate(item, instanceType));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
       } while (typeof data.LastEvaluatedKey !== "undefined");
-
-      if (instanceType === "ies") {
-        finalResponse = iesResponse;
-      } else {
-        finalResponse = libResponse;
-      }
-
-      return finalResponse;
+      return iesResponse;
+      
     } catch (error) {
       console.error("Error fetching items from DynamoDB:", error);
-      reply.code(500).send("Error fetching items from DynamoDB:", error);
     }
   }
   //-------------IES END Here---------------------//
