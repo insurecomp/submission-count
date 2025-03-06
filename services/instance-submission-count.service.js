@@ -205,7 +205,7 @@ class instanceCountService {
     obj["QuoteDate"] = item?.quoteData?.date
       ? moment(item?.quoteData?.date, ["x"]).format("MM-DD-YYYY")
       : "NULL";
-    obj["CarrierSelected"] = await this.fetchE3CarrierSelected(
+    obj["SelectedCarrier"] = await this.fetchE3CarrierSelected(
       item?.user_email_id
     );
     console.log(obj);
