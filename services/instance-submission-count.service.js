@@ -106,7 +106,7 @@ class instanceCountService {
     let carrierMap = {
       carrier_az: "Arch",
       carrier_ba: "SUNZ",
-      carrier_bb: "Prescient",
+      carrier_bc: "Prescient",
     };
     const params = {
       TableName: "E3UserStatusTable",
