@@ -99,6 +99,43 @@ class instanceCountService {
     }
   };
 
+  fetchE3CarrierSelected = async (partitionKey) => {
+    if (!partitionKey) {
+      return 0;
+    }
+    let carrierMap = {
+      carrier_az: "Arch",
+      carrier_ba: "SUNZ",
+      carrier_bb: "Prescient",
+    };
+    const params = {
+      TableName: "E3UserStatusTable",
+      KeyConditionExpression: "#id = :user_email_id",
+      ExpressionAttributeNames: {
+        "#id": "user_email_id",
+      },
+      ExpressionAttributeValues: {
+        ":user_email_id": partitionKey,
+      },
+      ScanIndexForward: false,
+      Limit: 1,
+    };
+    try {
+      const data = await docClient.send(new QueryCommand(params));
+      if (data.Items[0]?.tableCarrierSelect) {
+        let carrier = carrierMap[data.Items[0]?.tableCarrierSelect]
+          ? carrierMap[data.Items[0]?.tableCarrierSelect]
+          : data.Items[0]?.tableCarrierSelect;
+        return carrier;
+      } else {
+        return "NULL";
+      }
+    } catch (error) {
+      console.error("Error fetching E3 user status data:", error);
+      throw new Error("Error fetching user status data");
+    }
+  };
+
   //get Pibit OCR Date
   getPibitOCRdate = async (userID) => {
     try {
@@ -165,6 +202,12 @@ class instanceCountService {
     obj["AgentName"] = item?.modifiedBy
       ? item?.modifiedBy.split("@")[0]
       : "Null";
+    obj["QuoteDate"] = item?.quoteData?.date
+      ? moment(item?.quoteData?.date, ["x"]).format("MM-DD-YYYY")
+      : "NULL";
+    obj["CarrierSelected"] = await this.fetchE3CarrierSelected(
+      item?.user_email_id
+    );
     console.log(obj);
     return obj;
   };
@@ -340,7 +383,6 @@ class instanceCountService {
         params.ExclusiveStartKey = data.LastEvaluatedKey;
       } while (typeof data.LastEvaluatedKey !== "undefined");
       return iesResponse;
-      
     } catch (error) {
       console.error("Error fetching items from DynamoDB:", error);
     }
