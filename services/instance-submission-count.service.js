@@ -389,6 +389,151 @@ class instanceCountService {
   }
   //-------------IES END Here---------------------//
 
+  //-------------RTIA START HERE------------------//
+  getGoverningClassCode = (childerLoc) => {
+    let arr1 = [];
+    let arr2 = [];
+    for (let key in childerLoc) {
+      let obj = childerLoc[key];
+      let classCodesInfoObj = obj?.classCodesInfo;
+      for (let indx in classCodesInfoObj) {
+        let classCode =
+          classCodesInfoObj[indx]?.classCodeDescription?.value?.split(":")[0];
+        let payroll = classCodesInfoObj[indx]?.payroll?.value;
+        let number = parseInt(payroll?.replace(/[\$,]/g, ""), 10);
+        arr1.push(classCode);
+        arr2.push(number);
+      }
+    }
+    let map = new Map();
+    for (let i = 0; i < arr2.length; i++) {
+      map.set(i, arr2[i]);
+    }
+    let max = Math.max(...arr2);
+    let arr1_index;
+    for (let [k, v] of map) {
+      if (v === max) {
+        arr1_index = k;
+      }
+    }
+
+    return arr1[arr1_index];
+  };
+
+  getGoverningState = (childerLoc) => {
+    let payrollByState = {};
+    let highestPayrollState = null;
+    let highestPayroll = 0;
+    for (let key in childerLoc) {
+      let state = childerLoc[key].state.value;
+      let classCodesInfo = childerLoc[key].classCodesInfo;
+      // Initialize state's payroll if not already
+      if (!payrollByState[state]) {
+        payrollByState[state] = 0;
+      }
+      // Sum up all payrolls for this state
+      for (let classKey in classCodesInfo) {
+        let payrollValue = classCodesInfo[classKey]?.payroll?.value;
+        let payrollAmount = parseInt(payrollValue?.replace(/[\$,]/g, ""), 10);
+        payrollByState[state] += payrollAmount;
+      }
+      // Check if this state has the highest payroll
+      if (payrollByState[state] > highestPayroll) {
+        highestPayroll = payrollByState[state];
+        highestPayrollState = state;
+      }
+    }
+    //   console.log(payrollByState);
+    return highestPayrollState;
+  };
+
+  fetchRTIAUserStatusData = async (partitionKey) => {
+    if (!partitionKey) {
+      return 0;
+    }
+    const params = {
+      TableName: "RTIAUserStatusTable",
+      KeyConditionExpression: "#id = :user_email_id",
+      ExpressionAttributeNames: {
+        "#id": "user_email_id",
+      },
+      ExpressionAttributeValues: {
+        ":user_email_id": partitionKey,
+      },
+      ScanIndexForward: false,
+      Limit: 1,
+    };
+    try {
+      const data = await docClient.send(new QueryCommand(params)); // Use QueryCommand with send()
+      if (data.Items[0]?.carrier_location_data) {
+        let totalPremium =
+          data.Items[0]?.carrier_location_data?.carrier_k
+            ?.total_standard_premium || "NULL";
+        return totalPremium;
+      } else {
+        return 0;
+      }
+    } catch (error) {
+      console.error("Error fetching E3 user status data:", error);
+      throw new Error("Error fetching user status data");
+    }
+  };
+
+  rtiaCalculate = async (item) => {
+    let obj = {};
+    obj["Unique Id"] = item?.user_email_id;
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
+    obj["Created Date"] = item?.uploadTimestamp
+      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
+      : "";
+    obj["Total Payroll"] = item?.childrenLoc
+      ? this.payrollCalculation(item?.childrenLoc)
+      : 0;
+    obj["GoverningCC"] = item?.childrenLoc
+      ? this.getGoverningClassCode(item?.childrenLoc)
+      : "NULL";
+    obj["GoverningState"] = item?.childrenLoc
+      ? this.getGoverningState(item?.childrenLoc)
+      : "NULL";
+    let status;
+    if (item?.status === "quote_generated" && !item?.submissionsaved) {
+      status = "Price Indication";
+    } else if (item?.status === "quote_generated" && item?.submissionsaved) {
+      status = "Submitted";
+    } else {
+      status = "-";
+    }
+    obj["Status"] = status;
+    obj["selectedPEO"] = item?.companyProfile?.peo?.value || "";
+    obj["Total Premium"] = await this.fetchRTIAUserStatusData(
+      item?.user_email_id
+    );
+    console.log(obj);
+    return obj;
+  };
+
+  async downloadRTIAData() {
+    let finalResponse = [];
+    let params = {
+      TableName: "RTIAUserTable",
+    };
+
+    try {
+      let data;
+      do {
+        data = await docClient.send(new ScanCommand(params));
+        for (let item of data.Items) {
+          finalResponse.push(await this.rtiaCalculate(item));
+        }
+        params.ExclusiveStartKey = data.LastEvaluatedKey;
+      } while (typeof data.LastEvaluatedKey !== "undefined");
+      return finalResponse;
+    } catch (error) {
+      console.error("Error fetching items from DynamoDB:", error);
+      return [];
+    }
+  }
+
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
       if (type === "e3") {
@@ -399,6 +544,9 @@ class instanceCountService {
         reply.send(response);
       } else if (type === "ies") {
         const response = await this.downloadIESorLibertateData(type);
+        reply.send(response);
+      } else if (type === "rtia") {
+        const response = await this.downloadRTIAData();
         reply.send(response);
       }
     } catch (error) {
