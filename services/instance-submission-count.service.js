@@ -328,7 +328,7 @@ class instanceCountService {
     }
   };
 
-  iesorLibCalculate = async (item, instanceType) => {
+  libCalculate = async (item, instanceType) => {
     let obj = {};
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
@@ -347,20 +347,14 @@ class instanceCountService {
       ? this.payrollCalculation(item?.childrenLoc)
       : "$0";
 
-    obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
+    obj["Created Date"] = item?.createdDate
+      ? moment(item?.createdDate, ["x"]).format("MM-DD-YYYY")
       : "";
-
-    if (instanceType === "ies") {
-      let lossRunData = await this.fetchIESpibitOCR(item?.user_email_id);
-      obj["LossRun"] = lossRunData ? "YES" : "NO";
-      obj["lossRDate"] = lossRunData ? lossRunData : "NULL";
-    }
     console.log(obj);
     return obj;
   };
 
-  async downloadIESorLibertateData(instanceType) {
+  async downloadIESData(instanceType) {
     let iesResponse = [];
     let params = {
       TableName: "Icomp2UserTable",
@@ -378,7 +372,7 @@ class instanceCountService {
       do {
         data = await docClient.send(new ScanCommand(params));
         for (let item of data.Items) {
-          iesResponse.push(await this.iesorLibCalculate(item, instanceType));
+          iesResponse.push(await this.libCalculate(item, instanceType));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
       } while (typeof data.LastEvaluatedKey !== "undefined");
@@ -533,6 +527,66 @@ class instanceCountService {
       return [];
     }
   }
+  //------------RTIA END HERE-----------------//
+
+  //------------LIBERTATE START HERE-----------//
+
+  libCalculate = async (item) => {
+    let obj = {};
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
+    obj["FEIN"] = item?.companyProfile?.fein?.value || "";
+    let status;
+    let dbStatus = item?.status || "";
+    if (dbStatus === "quote_generated" || dbStatus === "view_proposal") {
+      status = "Quote Generated";
+    } else if (dbStatus === "company_profile") {
+      status = "Underwriting Page";
+    } else {
+      status = "API";
+    }
+    obj["Status"] = status;
+    obj["PEO"] = item?.peoDetails?.selectedPeo || "";
+    obj["Total Payroll"] = item?.childrenLoc
+      ? this.payrollCalculation(item?.childrenLoc)
+      : "$0";
+
+    obj["Created Date"] = item?.createdDate
+      ? moment(item?.createdDate, ["x"]).format("MM-DD-YYYY")
+      : "";
+    console.log(obj);
+    return obj;
+  };
+
+  async downloadLibertateData() {
+    let libResponse = [];
+    let params = {
+      TableName: "Icomp2UserTable",
+      IndexName: "secondary_index_hash_key-uploadTimestamp-index",
+      KeyConditionExpression: "#sihk=:sihk",
+      ScanIndexForward: false,
+      ExpressionAttributeNames: {
+        "#sihk": "secondary_index_hash_key",
+      },
+      ExpressionAttributeValues: {
+        ":sihk": "true",
+      },
+    };
+
+    try {
+      let data;
+      do {
+        data = await docClient.send(new QueryCommand(params));
+        for (let item of data.Items) {
+          libResponse.push(await this.libCalculate(item));
+        }
+        params.ExclusiveStartKey = data.LastEvaluatedKey;
+      } while (typeof data.LastEvaluatedKey !== "undefined");
+
+      return libResponse;
+    } catch (error) {
+      console.error("Error fetching items from DynamoDB:", error);
+    }
+  }
 
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
@@ -543,10 +597,13 @@ class instanceCountService {
         const response = await this.downloadExtensisData();
         reply.send(response);
       } else if (type === "ies") {
-        const response = await this.downloadIESorLibertateData(type);
+        const response = await this.downloadIESData(type);
         reply.send(response);
       } else if (type === "rtia") {
         const response = await this.downloadRTIAData();
+        reply.send(response);
+      } else if (type === "libertate") {
+        const response = await this.downloadLibertateData();
         reply.send(response);
       }
     } catch (error) {
