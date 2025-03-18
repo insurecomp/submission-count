@@ -8,8 +8,14 @@ class RunnerService {
       await DataDumpService.processDataDump();
     });
 
-    /** Runs at 6:00 PM on Fridays only */
-    const job = new CronJob("0 17 * * 5", task);
+    const job = new CronJob(
+      {
+        /**  6:00 PM IST daily */
+        cronExpression: "30 12 * * 5",
+      },
+      task
+    );
+
     fastify.scheduler.addCronJob(job);
   }
 
