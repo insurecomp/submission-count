@@ -4,6 +4,8 @@
   "description": "API for submission count for all instance",
   "main": "index.js",
   "scripts": {
+    "start-dev": "npm run lint && node app.js",
+    "lint": "eslint --config eslint.config.mjs . --ext .mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -13,11 +15,22 @@
     "@aws-sdk/lib-dynamodb": "^3.744.0",
     "@fastify/aws-lambda": "^5.1.4",
     "@fastify/cors": "^10.0.2",
+    "@fastify/schedule": "^6.0.0",
     "aws-lambda-fastify": "^2.2.0",
+    "axios": "^1.8.3",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
     "moment": "^2.30.1",
     "numeral": "^2.0.6",
+    "toad-scheduler": "^3.0.1",
+    "xlsx": "^0.18.5",
     "zlib": "^1.0.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3"
   }
 }

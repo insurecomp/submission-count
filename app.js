@@ -1,7 +1,10 @@
 const fastify = require("./fastify");
+const { fastifySchedule } = require("@fastify/schedule");
 const dynamoDBConn = require("./config/dynamodb");
 const downloadInstanceData = require("./routes/instance-submission-count.route");
+const RunnerService = require("./services/runner");
 
+fastify.register(fastifySchedule);
 fastify.register(dynamoDBConn);
 fastify.register(require("@fastify/cors"), {
   origin: "*", // Allow all origins
@@ -14,6 +17,9 @@ const start = async () => {
   try {
     await fastify.listen({ port: 3000, host: "0.0.0.0" });
     console.log("server listening on 3000");
+
+    await fastify.ready();
+    await RunnerService.run();
   } catch (err) {
     console.error(err);
     process.exit(1);

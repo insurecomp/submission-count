@@ -1,12 +1,10 @@
-const fastify = require("../fastify");
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const {
   DynamoDBDocumentClient,
   ScanCommand,
   QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
-let moment = require("moment");
-let numeral = require("numeral");
+const moment = require("moment");
 const client = new DynamoDBClient({ region: "us-east-1" }); // Set your region
 const docClient = DynamoDBDocumentClient.from(client);
 
@@ -32,16 +30,16 @@ class instanceCountService {
     let maxClassCode = null;
     let maxState = null;
 
-    for (let key in childrenLoc) {
-      let childrenLocObject = childrenLoc[key];
-      let classCodes = childrenLocObject.classCodesInfo;
-      let state = childrenLocObject.state.value;
+    for (const key in childrenLoc) {
+      const childrenLocObject = childrenLoc[key];
+      const classCodes = childrenLocObject.classCodesInfo;
+      const state = childrenLocObject.state.value;
 
-      for (let ele in classCodes) {
-        let payroll = Number(
+      for (const ele in classCodes) {
+        const payroll = Number(
           classCodes[ele].payroll.value.replace(/[\$,]/g, "")
         );
-        let classCode =
+        const classCode =
           classCodes[ele].classCodeDescription.value.split(":")[0]; // Extract class code
 
         if (payroll > maxPayroll) {
@@ -60,7 +58,7 @@ class instanceCountService {
   //calculate Payroll
   getE3TotalPremium = (obj) => {
     let sum = 0;
-    for (let key in obj) {
+    for (const key in obj) {
       sum += obj[key].total_standard_premium;
     }
     return sum;
@@ -86,7 +84,7 @@ class instanceCountService {
     try {
       const data = await docClient.send(new QueryCommand(params)); // Use QueryCommand with send()
       if (data.Items[0]?.carrier_location_data) {
-        let totalPremium = this.getE3TotalPremium(
+        const totalPremium = this.getE3TotalPremium(
           data.Items[0].carrier_location_data
         );
         return totalPremium;
@@ -103,7 +101,7 @@ class instanceCountService {
     if (!partitionKey) {
       return 0;
     }
-    let carrierMap = {
+    const carrierMap = {
       carrier_az: "Arch",
       carrier_ba: "SUNZ",
       carrier_bc: "Prescient",
@@ -123,7 +121,7 @@ class instanceCountService {
     try {
       const data = await docClient.send(new QueryCommand(params));
       if (data.Items[0]?.tableCarrierSelect) {
-        let carrier = carrierMap[data.Items[0]?.tableCarrierSelect]
+        const carrier = carrierMap[data.Items[0]?.tableCarrierSelect]
           ? carrierMap[data.Items[0]?.tableCarrierSelect]
           : data.Items[0]?.tableCarrierSelect;
         return carrier;
@@ -149,8 +147,8 @@ class instanceCountService {
       };
       const command = new QueryCommand(params);
       const response = await docClient.send(command);
-      let date = response.Items[0]?.createdTimestamp;
-      let e3CreatedDate = date
+      const date = response.Items[0]?.createdTimestamp;
+      const e3CreatedDate = date
         ? moment(date + "000", ["x"]).format("MM-DD-YYYY")
         : "";
       return e3CreatedDate;
@@ -162,14 +160,14 @@ class instanceCountService {
 
   //E3 Coloumn & Row setting
   e3RowCalculate = async (item) => {
-    let obj = {};
+    const obj = {};
     obj["Unique Id"] = item?.user_email_id;
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
     obj["Total Premium"] = await this.fetchE3UserStatusData(
       item?.user_email_id
     );
-    let formstage = item?.formStage;
+    const formstage = item?.formStage;
     let e3Status;
     if (formstage === "one" || formstage === "two") {
       e3Status = "In Progress";
@@ -215,14 +213,14 @@ class instanceCountService {
   //Table Scaning function for E3
   async getAllE3Data(instanceType) {
     try {
-      let tableName = "E3UserTable";
-      let params = { TableName: tableName };
-      let finalResponse = [];
+      const tableName = "E3UserTable";
+      const params = { TableName: tableName };
+      const finalResponse = [];
       let dbResponse;
 
       do {
         dbResponse = await docClient.send(new ScanCommand(params));
-        for (let item of dbResponse.Items) {
+        for (const item of dbResponse.Items) {
           if (item?.companyProfile?.companyName?.value) {
             finalResponse.push(await this.e3RowCalculate(item));
           }
@@ -240,7 +238,7 @@ class instanceCountService {
   //Feching E3 Data
   async downloadE3Data(instanceType) {
     try {
-      let finalResponse = await this.getAllE3Data(instanceType);
+      const finalResponse = await this.getAllE3Data(instanceType);
       return finalResponse;
     } catch (error) {
       console.error("Error in API:", error);
@@ -252,7 +250,7 @@ class instanceCountService {
 
   //-------------Extensis Start Here--------------------//
   extensisCalculate = async (item) => {
-    let obj = {};
+    const obj = {};
     obj["Opportunity ID"] = item?.opportunity_id || "";
     obj["Effective Date"] = item?.effective_date || "";
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
@@ -282,8 +280,8 @@ class instanceCountService {
   };
 
   async downloadExtensisData() {
-    let finalResponse = [];
-    let params = {
+    const finalResponse = [];
+    const params = {
       TableName: "ExtensisOpportunityData",
     };
 
@@ -291,7 +289,7 @@ class instanceCountService {
       let data;
       do {
         data = await docClient.send(new ScanCommand(params));
-        for (let item of data.Items) {
+        for (const item of data.Items) {
           finalResponse.push(await this.extensisCalculate(item));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
@@ -317,8 +315,8 @@ class instanceCountService {
       };
       const command = new QueryCommand(params);
       const response = await docClient.send(command);
-      let date = response.Items[0]?.createdTimestamp;
-      let e3CreatedDate = date
+      const date = response.Items[0]?.createdTimestamp;
+      const e3CreatedDate = date
         ? moment(date + "000", ["x"]).format("MM-DD-YYYY")
         : "";
       return e3CreatedDate;
@@ -329,11 +327,11 @@ class instanceCountService {
   };
 
   libCalculate = async (item, instanceType) => {
-    let obj = {};
+    const obj = {};
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
     let status;
-    let dbStatus = item?.status || "";
+    const dbStatus = item?.status || "";
     if (dbStatus === "quote_generated" || dbStatus === "view_proposal") {
       status = "Quote Generated";
     } else if (dbStatus === "company_profile") {
@@ -355,8 +353,8 @@ class instanceCountService {
   };
 
   async downloadIESData(instanceType) {
-    let iesResponse = [];
-    let params = {
+    const iesResponse = [];
+    const params = {
       TableName: "Icomp2UserTable",
       FilterExpression: "#origin = :ies OR attribute_exists(salesforceData)",
       ExpressionAttributeNames: {
@@ -371,7 +369,7 @@ class instanceCountService {
       let data;
       do {
         data = await docClient.send(new ScanCommand(params));
-        for (let item of data.Items) {
+        for (const item of data.Items) {
           iesResponse.push(await this.libCalculate(item, instanceType));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
@@ -385,27 +383,27 @@ class instanceCountService {
 
   //-------------RTIA START HERE------------------//
   getGoverningClassCode = (childerLoc) => {
-    let arr1 = [];
-    let arr2 = [];
-    for (let key in childerLoc) {
-      let obj = childerLoc[key];
-      let classCodesInfoObj = obj?.classCodesInfo;
-      for (let indx in classCodesInfoObj) {
-        let classCode =
+    const arr1 = [];
+    const arr2 = [];
+    for (const key in childerLoc) {
+      const obj = childerLoc[key];
+      const classCodesInfoObj = obj?.classCodesInfo;
+      for (const indx in classCodesInfoObj) {
+        const classCode =
           classCodesInfoObj[indx]?.classCodeDescription?.value?.split(":")[0];
-        let payroll = classCodesInfoObj[indx]?.payroll?.value;
-        let number = parseInt(payroll?.replace(/[\$,]/g, ""), 10);
+        const payroll = classCodesInfoObj[indx]?.payroll?.value;
+        const number = parseInt(payroll?.replace(/[\$,]/g, ""), 10);
         arr1.push(classCode);
         arr2.push(number);
       }
     }
-    let map = new Map();
+    const map = new Map();
     for (let i = 0; i < arr2.length; i++) {
       map.set(i, arr2[i]);
     }
-    let max = Math.max(...arr2);
+    const max = Math.max(...arr2);
     let arr1_index;
-    for (let [k, v] of map) {
+    for (const [k, v] of map) {
       if (v === max) {
         arr1_index = k;
       }
@@ -415,20 +413,20 @@ class instanceCountService {
   };
 
   getGoverningState = (childerLoc) => {
-    let payrollByState = {};
+    const payrollByState = {};
     let highestPayrollState = null;
     let highestPayroll = 0;
-    for (let key in childerLoc) {
-      let state = childerLoc[key].state.value;
-      let classCodesInfo = childerLoc[key].classCodesInfo;
+    for (const key in childerLoc) {
+      const state = childerLoc[key].state.value;
+      const classCodesInfo = childerLoc[key].classCodesInfo;
       // Initialize state's payroll if not already
       if (!payrollByState[state]) {
         payrollByState[state] = 0;
       }
       // Sum up all payrolls for this state
-      for (let classKey in classCodesInfo) {
-        let payrollValue = classCodesInfo[classKey]?.payroll?.value;
-        let payrollAmount = parseInt(payrollValue?.replace(/[\$,]/g, ""), 10);
+      for (const classKey in classCodesInfo) {
+        const payrollValue = classCodesInfo[classKey]?.payroll?.value;
+        const payrollAmount = parseInt(payrollValue?.replace(/[\$,]/g, ""), 10);
         payrollByState[state] += payrollAmount;
       }
       // Check if this state has the highest payroll
@@ -460,7 +458,7 @@ class instanceCountService {
     try {
       const data = await docClient.send(new QueryCommand(params)); // Use QueryCommand with send()
       if (data.Items[0]?.carrier_location_data) {
-        let totalPremium =
+        const totalPremium =
           data.Items[0]?.carrier_location_data?.carrier_k
             ?.total_standard_premium || "NULL";
         return totalPremium;
@@ -474,7 +472,7 @@ class instanceCountService {
   };
 
   rtiaCalculate = async (item) => {
-    let obj = {};
+    const obj = {};
     obj["Unique Id"] = item?.user_email_id;
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["Created Date"] = item?.uploadTimestamp
@@ -507,8 +505,8 @@ class instanceCountService {
   };
 
   async downloadRTIAData() {
-    let finalResponse = [];
-    let params = {
+    const finalResponse = [];
+    const params = {
       TableName: "RTIAUserTable",
     };
 
@@ -516,7 +514,7 @@ class instanceCountService {
       let data;
       do {
         data = await docClient.send(new ScanCommand(params));
-        for (let item of data.Items) {
+        for (const item of data.Items) {
           finalResponse.push(await this.rtiaCalculate(item));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
@@ -532,11 +530,11 @@ class instanceCountService {
   //------------LIBERTATE START HERE-----------//
 
   libCalculate = async (item) => {
-    let obj = {};
+    const obj = {};
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
     let status;
-    let dbStatus = item?.status || "";
+    const dbStatus = item?.status || "";
     if (dbStatus === "quote_generated" || dbStatus === "view_proposal") {
       status = "Quote Generated";
     } else if (dbStatus === "company_profile") {
@@ -558,8 +556,8 @@ class instanceCountService {
   };
 
   async downloadLibertateData() {
-    let libResponse = [];
-    let params = {
+    const libResponse = [];
+    const params = {
       TableName: "Icomp2UserTable",
       IndexName: "secondary_index_hash_key-uploadTimestamp-index",
       KeyConditionExpression: "#sihk=:sihk",
@@ -576,7 +574,7 @@ class instanceCountService {
       let data;
       do {
         data = await docClient.send(new QueryCommand(params));
-        for (let item of data.Items) {
+        for (const item of data.Items) {
           libResponse.push(await this.libCalculate(item));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
