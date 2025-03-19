@@ -10,8 +10,8 @@ class RunnerService {
 
     const job = new CronJob(
       {
-        /**  6:00 PM IST daily */
-        cronExpression: "30 12 * * 5",
+        /**  4:30 PM IST daily */
+        cronExpression: "* 11 * * 5",
       },
       task
     );

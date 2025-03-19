@@ -85,7 +85,7 @@ class DataDumpService {
 
       return record[0].lcm;
     } catch (error) {
-      console.log("Error in getLcmTableData", error);
+      console.log("Error in getLcmValue", error?.message);
       return "No LCM";
     }
   }
@@ -312,7 +312,7 @@ class DataDumpService {
 
   async processDataDump() {
     try {
-      console.log("processDataDump");
+      console.log("processing Data Dump");
       const { file_name, file_path, tempDir } =
         await this.fetchDataAndWriteToExcel();
 
@@ -334,10 +334,9 @@ class DataDumpService {
       console.log("Constructing email body");
       const body = {
         to: ["info.trigger@insurecomp.com"],
-        // to: ["ishwaryachandrasekaran@insurecomp.com"],
         subject: "Data dump",
         html: `<p>
-              <p>Hey,</p>
+              <p>Hi team,</p>
               <p>The data dump for this week has been generated and is available for download. Please find the link below:</p>
               <p><a href="${downloadUrl}" style="color: #007bff; text-decoration: none; font-weight: bold;">Download Data</a></p>
               <p>Let us know if you have any questions.</p>
@@ -353,6 +352,34 @@ class DataDumpService {
       console.log("Mail sent!");
     } catch (e) {
       console.log("Error sending mail", e);
+    }
+  }
+
+  async uploadFileAndGetAttachmentKeyWithDownloadUrl(file_path, file_name) {
+    const fileSizeInBytes = fs.statSync(file_path).size;
+    const { key, signedUrl, downloadUrl } = await this.getSignedUrl(
+      file_name,
+      fileSizeInBytes
+    );
+    console.log("Got signed url");
+
+    await this.uploadFile(signedUrl, file_path);
+
+    return { key, downloadUrl };
+  }
+
+  async uploadFile(signedUrl, file_path) {
+    try {
+      const fileData = await fs.promises.readFile(file_path);
+
+      await axios.put(signedUrl, fileData, {
+        headers: Util.getHeadersForExcel(),
+      });
+
+      console.log("File is uploaded");
+    } catch (error) {
+      console.log("error in upload file ", error);
+      throw Error(error);
     }
   }
 
