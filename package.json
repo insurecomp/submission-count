@@ -6,13 +6,15 @@
   "scripts": {
     "start-dev": "npm run lint && node app.js",
     "lint": "eslint --config eslint.config.mjs . --ext .mjs",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: invalid commit message\" && exit 1",
+    "prepare": "husky install"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.744.0",
     "@aws-sdk/lib-dynamodb": "^3.744.0",
+    "@commitlint/config-angular": "^19.8.0",
     "@fastify/aws-lambda": "^5.1.4",
     "@fastify/cors": "^10.0.2",
     "@fastify/schedule": "^6.0.0",
@@ -31,6 +33,7 @@
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.1",
     "globals": "^16.0.0",
+    "husky": "^8.0.0",
     "prettier": "^3.5.3"
   }
 }
