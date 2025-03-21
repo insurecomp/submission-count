@@ -420,7 +420,7 @@ class instanceCountService {
     }
   };
 
-  libCalculate = async (item, instanceType) => {
+  iesCalculate = async (item, instanceType) => {
     const obj = {};
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
@@ -443,7 +443,7 @@ class instanceCountService {
       ? new Date(parseInt(item.createdDate))
       : null;
 
-    let lossRunData=await fetchIESpibitOCR(item?.user_email_id)
+    let lossRunData=await this.fetchIESpibitOCR(item?.user_email_id)
     if(lossRunData){
       obj["LossRunUpload"]="Yes"
       obj["LossRunDate"] = lossRunData
@@ -473,7 +473,7 @@ class instanceCountService {
       do {
         data = await docClient.send(new ScanCommand(params));
         for (const item of data.Items) {
-          iesResponse.push(await this.libCalculate(item, instanceType));
+          iesResponse.push(await this.iesCalculate(item, instanceType));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
       } while (typeof data.LastEvaluatedKey !== "undefined");
