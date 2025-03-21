@@ -256,7 +256,7 @@ class instanceCountService {
     obj["Unique Id"] = item?.user_email_id;
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
-    obj["Total Premium"] = await this.fetchE3UserStatusData(
+    obj["TPremium"] = await this.fetchE3UserStatusData(
       item?.user_email_id
     );
     const formstage = item?.formStage;
