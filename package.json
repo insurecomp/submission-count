@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.744.0",
+    "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/lib-dynamodb": "^3.744.0",
     "@commitlint/config-angular": "^19.8.0",
     "@fastify/aws-lambda": "^5.1.4",
