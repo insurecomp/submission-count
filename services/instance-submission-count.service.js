@@ -276,8 +276,8 @@ class instanceCountService {
       ? this.payrollCalculation(item?.childrenLoc)
       : 0;
     obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.uploadTimestamp))
+      : null;
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
     obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
     obj["GoverningState"] =
@@ -293,8 +293,8 @@ class instanceCountService {
       ? item?.modifiedBy.split("@")[0]
       : "Null";
     obj["QuoteDate"] = item?.quoteData?.date
-      ? moment(item?.quoteData?.date, ["x"]).format("MM-DD-YYYY")
-      : "NULL";
+      ? new Date(parseInt(item.quoteData?.date))
+      : null;
      let selectedCarrier= await this.fetchE3CarrierSelected(
       item?.user_email_id
     );
@@ -363,8 +363,9 @@ class instanceCountService {
       ? this.payrollCalculation(item?.payrollData)
       : "$0";
     obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
-      : "";
+    ? new Date(parseInt(item.uploadTimestamp))
+    : null;
+    
     obj["Agent Name"] = item?.modifiedByName || "";
     obj["Agenct Email"] = item?.modifiedBy || "";
     obj["Type"] = "New Business";
@@ -437,10 +438,10 @@ class instanceCountService {
     obj["Total Payroll"] = item?.childrenLoc
       ? this.payrollCalculation(item?.childrenLoc)
       : "$0";
-
+    
     obj["Created Date"] = item?.createdDate
-      ? moment(item?.createdDate, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.createdDate))
+      : null;
 
     let lossRunData=await fetchIESpibitOCR(item?.user_email_id)
     if(lossRunData){
@@ -576,10 +577,10 @@ class instanceCountService {
   rtiaCalculate = async (item) => {
     const obj = {};
     obj["Unique Id"] = item?.user_email_id;
-    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";    
     obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.uploadTimestamp))
+      : null;
     obj["Total Payroll"] = item?.childrenLoc
       ? this.payrollCalculation(item?.childrenLoc)
       : 0;
@@ -651,8 +652,8 @@ class instanceCountService {
       : "$0";
 
     obj["Created Date"] = item?.createdDate
-      ? moment(item?.createdDate, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.createdDate))
+      : null;
     console.log(obj);
     return obj;
   };
