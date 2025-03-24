@@ -2,6 +2,7 @@ const fastify = require("./fastify");
 const { fastifySchedule } = require("@fastify/schedule");
 const dynamoDBConn = require("./config/dynamodb");
 const downloadInstanceData = require("./routes/instance-submission-count.route");
+const runnerRoute = require("./routes/runner.route");
 const RunnerService = require("./services/runner");
 
 fastify.register(fastifySchedule);
@@ -12,6 +13,7 @@ fastify.register(require("@fastify/cors"), {
 
 //Register all your routes here
 downloadInstanceData.registerRoutes();
+runnerRoute.registerRoutes();
 
 const start = async () => {
   try {
