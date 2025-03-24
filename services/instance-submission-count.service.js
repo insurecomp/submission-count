@@ -5,8 +5,14 @@ const {
   QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const moment = require("moment");
-const client = new DynamoDBClient({ region: "us-east-1" }); // Set your region
+const client = new DynamoDBClient({ region: "us-east-1" });
+const { GetObjectCommand, PutObjectCommand, HeadObjectCommand, S3Client } = require("@aws-sdk/client-s3");
 const docClient = DynamoDBDocumentClient.from(client);
+const s3Client = new S3Client({
+  region: "us-east-1",
+});
+const LOOP_LIMIT = 3;
+const BUCKET_NAME = "e3-quote-json-docs";
 
 class instanceCountService {
   constructor() {}
@@ -55,20 +61,101 @@ class instanceCountService {
 
   //------------E3 Start Here----------------------//
 
-  //calculate Payroll
-  getE3TotalPremium = (obj) => {
-    let sum = 0;
-    for (const key in obj) {
-      sum += obj[key].total_standard_premium;
-    }
-    return sum;
+  async hasFileGenerated(params) {
+  try {
+
+    const command = new HeadObjectCommand(params);
+    await s3Client.send(command);
+
+    return true;
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+  }
+
+  streamToString = (stream) => {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    stream.on("error", reject);
+  });
   };
+
+  async loopOverBucketAndCheckForFile(params, i = 0) {
+    let returnVal = false;
+    await new Promise((resolve, reject) => {
+  
+      if (i >= LOOP_LIMIT) reject("Error");
+  
+      setTimeout(async () => {
+        let fileExists = this.hasFileGenerated(params);
+  
+        if (fileExists) resolve("found");
+        else if (i < LOOP_LIMIT) resolve("continue");
+        else resolve("not found");
+      }, 3000);
+    })
+      .then(res => {
+        console.log("res: ", res);
+        if (res === "not found") {
+          returnVal = false;
+        } else if (res === "continue") {
+          returnVal = this.loopOverBucketAndCheckForFile(params, i + 1);
+        } else if (res === "found") {
+          returnVal = true;
+        }
+      })
+      .catch(err => { console.log(err); returnVal = false; });
+    return returnVal;
+  }
+  
+  async fetchFroms3  (key) {
+    try {
+      const PARAM_TO_BUCKET = {
+        Bucket: BUCKET_NAME,
+        Key: key,
+      };
+  
+      let checkFile = await this.loopOverBucketAndCheckForFile(PARAM_TO_BUCKET, 0);
+  
+      if (!checkFile) throw new Error("File doesnot exist");
+  
+      const command = new GetObjectCommand(PARAM_TO_BUCKET);
+  
+      const data = await s3Client.send(command);
+      const jsonQuotesData = await this.streamToString(data?.Body);
+  
+      return { data: jsonQuotesData, error: null };
+  
+    } catch (error) {
+      console.log(error);
+      return { data: null, error: "Error" }
+    }
+  }
+
+  getE3TotalPremium =async (obj,key)=>{
+    if (obj?.["keyToStorage"]) {
+      let { data, error } = await this.fetchFroms3(obj["keyToStorage"]);
+      let dataKey=key.split("+")[1]
+      // console.log("Suraj 0098=====>",JSON.parse(data)?.[dataKey]?.["e3hr"])
+      if (error) {
+        console.log(error);
+        return null
+      };
+      return JSON.parse(data)?.[dataKey]?.["e3hr"];
+    } else {
+      return obj;
+    }
+  }
 
   // Fetch E3 HR Data from User Status Data
   fetchE3UserStatusData = async (partitionKey) => {
     if (!partitionKey) {
       return 0;
     }
+    let selectedCarrier= await this.fetchE3CarrierSelected(partitionKey)
     const params = {
       TableName: "E3UserStatusTable",
       KeyConditionExpression: "#id = :user_email_id",
@@ -82,12 +169,16 @@ class instanceCountService {
       Limit: 1,
     };
     try {
-      const data = await docClient.send(new QueryCommand(params)); // Use QueryCommand with send()
+      const data = await docClient.send(new QueryCommand(params));
       if (data.Items[0]?.carrier_location_data) {
-        const totalPremium = this.getE3TotalPremium(
-          data.Items[0].carrier_location_data
+        const jsonData = await this.getE3TotalPremium(
+          data.Items[0].carrier_location_data, data.Items[0].uuid_carrier
         );
-        return totalPremium;
+        let teap;
+        if(jsonData&&selectedCarrier){
+          teap=jsonData[selectedCarrier]?.total_estimated_annual_premium||0
+        }
+        return teap;
       } else {
         return 0;
       }
@@ -101,11 +192,7 @@ class instanceCountService {
     if (!partitionKey) {
       return 0;
     }
-    const carrierMap = {
-      carrier_az: "Arch",
-      carrier_ba: "SUNZ",
-      carrier_bc: "Prescient",
-    };
+
     const params = {
       TableName: "E3UserStatusTable",
       KeyConditionExpression: "#id = :user_email_id",
@@ -121,9 +208,9 @@ class instanceCountService {
     try {
       const data = await docClient.send(new QueryCommand(params));
       if (data.Items[0]?.tableCarrierSelect) {
-        const carrier = carrierMap[data.Items[0]?.tableCarrierSelect]
-          ? carrierMap[data.Items[0]?.tableCarrierSelect]
-          : data.Items[0]?.tableCarrierSelect;
+        const carrier = data.Items[0]?.tableCarrierSelect
+          ? data.Items[0]?.tableCarrierSelect
+          : "Null";
         return carrier;
       } else {
         return "NULL";
@@ -161,10 +248,15 @@ class instanceCountService {
   //E3 Coloumn & Row setting
   e3RowCalculate = async (item) => {
     const obj = {};
+    const carrierMap = {
+      carrier_az: "Arch",
+      carrier_ba: "SUNZ",
+      carrier_bc: "Prescient",
+    };
     obj["Unique Id"] = item?.user_email_id;
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
-    obj["Total Premium"] = await this.fetchE3UserStatusData(
+    obj["TPremium"] = await this.fetchE3UserStatusData(
       item?.user_email_id
     );
     const formstage = item?.formStage;
@@ -184,8 +276,8 @@ class instanceCountService {
       ? this.payrollCalculation(item?.childrenLoc)
       : 0;
     obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.uploadTimestamp))
+      : null;
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
     obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
     obj["GoverningState"] =
@@ -201,11 +293,12 @@ class instanceCountService {
       ? item?.modifiedBy.split("@")[0]
       : "Null";
     obj["QuoteDate"] = item?.quoteData?.date
-      ? moment(item?.quoteData?.date, ["x"]).format("MM-DD-YYYY")
-      : "NULL";
-    obj["SelectedCarrier"] = await this.fetchE3CarrierSelected(
+      ? new Date(parseInt(item.quoteData?.date))
+      : null;
+     let selectedCarrier= await this.fetchE3CarrierSelected(
       item?.user_email_id
     );
+    obj["SelectedCarrier"]=selectedCarrier? carrierMap[selectedCarrier]:selectedCarrier
     console.log(obj);
     return obj;
   };
@@ -270,8 +363,9 @@ class instanceCountService {
       ? this.payrollCalculation(item?.payrollData)
       : "$0";
     obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
-      : "";
+    ? new Date(parseInt(item.uploadTimestamp))
+    : null;
+    
     obj["Agent Name"] = item?.modifiedByName || "";
     obj["Agenct Email"] = item?.modifiedBy || "";
     obj["Type"] = "New Business";
@@ -326,7 +420,7 @@ class instanceCountService {
     }
   };
 
-  libCalculate = async (item, instanceType) => {
+  iesCalculate = async (item, instanceType) => {
     const obj = {};
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
@@ -344,10 +438,19 @@ class instanceCountService {
     obj["Total Payroll"] = item?.childrenLoc
       ? this.payrollCalculation(item?.childrenLoc)
       : "$0";
-
+    
     obj["Created Date"] = item?.createdDate
-      ? moment(item?.createdDate, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.createdDate))
+      : null;
+
+    let lossRunData=await this.fetchIESpibitOCR(item?.user_email_id)
+    if(lossRunData){
+      obj["LossRunUpload"]="Yes"
+      obj["LossRunDate"] = lossRunData
+    }else{
+      obj["LossRunUpload"]="No"
+      obj["LossRunDate"] ="NULL"
+    }
     console.log(obj);
     return obj;
   };
@@ -370,7 +473,7 @@ class instanceCountService {
       do {
         data = await docClient.send(new ScanCommand(params));
         for (const item of data.Items) {
-          iesResponse.push(await this.libCalculate(item, instanceType));
+          iesResponse.push(await this.iesCalculate(item, instanceType));
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
       } while (typeof data.LastEvaluatedKey !== "undefined");
@@ -474,10 +577,10 @@ class instanceCountService {
   rtiaCalculate = async (item) => {
     const obj = {};
     obj["Unique Id"] = item?.user_email_id;
-    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";    
     obj["Created Date"] = item?.uploadTimestamp
-      ? moment(item?.uploadTimestamp, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.uploadTimestamp))
+      : null;
     obj["Total Payroll"] = item?.childrenLoc
       ? this.payrollCalculation(item?.childrenLoc)
       : 0;
@@ -549,8 +652,8 @@ class instanceCountService {
       : "$0";
 
     obj["Created Date"] = item?.createdDate
-      ? moment(item?.createdDate, ["x"]).format("MM-DD-YYYY")
-      : "";
+      ? new Date(parseInt(item.createdDate))
+      : null;
     console.log(obj);
     return obj;
   };
