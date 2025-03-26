@@ -256,7 +256,7 @@ class instanceCountService {
     obj["Unique Id"] = item?.user_email_id;
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
-    obj["TPremium"] = await this.fetchE3UserStatusData(
+    obj["TotalPremium"] = await this.fetchE3UserStatusData(
       item?.user_email_id
     );
     const formstage = item?.formStage;
@@ -292,7 +292,7 @@ class instanceCountService {
     obj["AgentName"] = item?.modifiedBy
       ? item?.modifiedBy.split("@")[0]
       : "Null";
-    obj["QuoteDate"] = item?.quoteData?.date
+    obj["QuoteDataDate"] = item?.quoteData?.date
       ? new Date(parseInt(item.quoteData?.date))
       : null;
      let selectedCarrier= await this.fetchE3CarrierSelected(
