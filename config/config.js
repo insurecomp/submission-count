@@ -1,5 +1,6 @@
 const COMMON = {
   EMAIL_MS_URL: "https://2j7w7a8hw7.execute-api.us-east-1.amazonaws.com/",
+  AWS_REGION: "us-east-1",
 };
 
 const DATA_DUMP_TABLENAMES = {

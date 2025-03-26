@@ -3,6 +3,7 @@ const { DynamoDBDocumentClient } = require("@aws-sdk/lib-dynamodb");
 const fp = require("fastify-plugin");
 const { NodeHttpHandler } = require("@smithy/node-http-handler");
 const https = require("https");
+const { COMMON } = require("./config");
 
 /** Enable connection reuse */
 process.env.AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1";
@@ -22,7 +23,7 @@ async function dynamoDBConnector(fastify, options) {
     });
 
     const dynamoClient = new DynamoDBClient({
-      region: process.env.AWS_REGION,
+      region: COMMON.AWS_REGION,
       requestHandler: httpHandler,
     });
 

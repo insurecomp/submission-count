@@ -1,6 +1,6 @@
 const { AsyncTask, CronJob } = require("toad-scheduler");
 const fastify = require("../fastify");
-const DataDumpService = require("./dumpHandler");
+const DataDumpService = require("./dumpHandler.service");
 
 class RunnerService {
   async runDataDumpJob() {
