@@ -236,8 +236,8 @@ class instanceCountService {
       const response = await docClient.send(command);
       const date = response.Items[0]?.createdTimestamp;
       const e3CreatedDate = date
-      ? moment.unix(date).format("MM-DD-YYYY")
-      : "";
+      ? moment.unix(date).utcOffset("+05:30").format("MM-DD-YYYY")
+      : "";    
       return e3CreatedDate;
     } catch (error) {
       console.error("Error fetching items:", error);
@@ -411,8 +411,8 @@ class instanceCountService {
       const response = await docClient.send(command);
       const date = response.Items[0]?.createdTimestamp;
       const e3CreatedDate = date
-        ? moment(date + "000", ["x"]).format("MM-DD-YYYY")
-        : "";
+      ? moment.unix(date).utcOffset("+05:30").format("MM-DD-YYYY")
+      : "";
       return e3CreatedDate;
     } catch (error) {
       console.error("Error fetching items:", error);
