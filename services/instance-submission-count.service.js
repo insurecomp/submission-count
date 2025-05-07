@@ -634,6 +634,7 @@ class instanceCountService {
 
   libCalculate = async (item) => {
     const obj = {};
+    obj["Unique Id"] = item?.user_email_id || "";
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["FEIN"] = item?.companyProfile?.fein?.value || "";
     let status;
@@ -678,7 +679,10 @@ class instanceCountService {
       do {
         data = await docClient.send(new QueryCommand(params));
         for (const item of data.Items) {
-          libResponse.push(await this.libCalculate(item));
+          if(item?.origin_instance !== "ies"){
+            libResponse.push(await this.libCalculate(item));
+          }
+          
         }
         params.ExclusiveStartKey = data.LastEvaluatedKey;
       } while (typeof data.LastEvaluatedKey !== "undefined");
