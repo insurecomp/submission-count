@@ -30,7 +30,6 @@ class instanceCountService {
     }
     return totalPayroll;
   };
-
   getHighestPayrollDetails(childrenLoc) {
     let maxPayroll = -Infinity;
     let maxClassCode = null;
@@ -59,8 +58,8 @@ class instanceCountService {
     return [maxClassCode, maxState];
   }
 
-  //------------E3 Start Here----------------------//
 
+  //------------E3 Start Here----------------------//
   async hasFileGenerated(params) {
   try {
 
@@ -73,7 +72,6 @@ class instanceCountService {
     return false;
   }
   }
-
   streamToString = (stream) => {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -82,7 +80,6 @@ class instanceCountService {
     stream.on("error", reject);
   });
   };
-
   async loopOverBucketAndCheckForFile(params, i = 0) {
     let returnVal = false;
     await new Promise((resolve, reject) => {
@@ -110,7 +107,6 @@ class instanceCountService {
       .catch(err => { console.log(err); returnVal = false; });
     return returnVal;
   }
-  
   async fetchFroms3  (key) {
     try {
       const PARAM_TO_BUCKET = {
@@ -134,7 +130,6 @@ class instanceCountService {
       return { data: null, error: "Error" }
     }
   }
-
   getE3TotalPremium =async (obj,key)=>{
     if (obj?.["keyToStorage"]) {
       let { data, error } = await this.fetchFroms3(obj["keyToStorage"]);
@@ -149,7 +144,6 @@ class instanceCountService {
       return obj;
     }
   }
-
   // Fetch E3 HR Data from User Status Data
   fetchE3UserStatusData = async (partitionKey) => {
     if (!partitionKey) {
@@ -187,7 +181,6 @@ class instanceCountService {
       throw new Error("Error fetching user status data");
     }
   };
-
   fetchE3CarrierSelected = async (partitionKey) => {
     if (!partitionKey) {
       return 0;
@@ -220,7 +213,6 @@ class instanceCountService {
       throw new Error("Error fetching user status data");
     }
   };
-
   //get Pibit OCR Date
   getPibitOCRdate = async (userID) => {
     try {
@@ -236,7 +228,7 @@ class instanceCountService {
       const response = await docClient.send(command);
       const date = response.Items[0]?.createdTimestamp;
       const e3CreatedDate = date
-      ? moment.unix(date).utcOffset("+05:30").format("MM-DD-YYYY")
+      ? new Date(date * 1000)
       : "";    
       return e3CreatedDate;
     } catch (error) {
@@ -244,7 +236,6 @@ class instanceCountService {
       return [];
     }
   };
-
   //E3 Coloumn & Row setting
   e3RowCalculate = async (item) => {
     const obj = {};
@@ -302,7 +293,6 @@ class instanceCountService {
     console.log(obj);
     return obj;
   };
-
   //Table Scaning function for E3
   async getAllE3Data(instanceType) {
     try {
@@ -327,7 +317,6 @@ class instanceCountService {
       throw new Error(`Error scanning table for ${instanceType}`);
     }
   }
-
   //Feching E3 Data
   async downloadE3Data(instanceType) {
     try {
@@ -338,7 +327,6 @@ class instanceCountService {
       return [];
     }
   }
-
   //------------E3 END Here----------------------//
 
   //-------------Extensis Start Here--------------------//
@@ -372,7 +360,6 @@ class instanceCountService {
     console.log(obj);
     return obj;
   };
-
   async downloadExtensisData() {
     const finalResponse = [];
     const params = {
@@ -419,7 +406,6 @@ class instanceCountService {
       return [];
     }
   };
-
   iesCalculate = async (item, instanceType) => {
     const obj = {};
     obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
@@ -454,7 +440,6 @@ class instanceCountService {
     console.log(obj);
     return obj;
   };
-
   async downloadIESData(instanceType) {
     const iesResponse = [];
     const params = {
@@ -514,7 +499,6 @@ class instanceCountService {
 
     return arr1[arr1_index];
   };
-
   getGoverningState = (childerLoc) => {
     const payrollByState = {};
     let highestPayrollState = null;
@@ -541,7 +525,6 @@ class instanceCountService {
     //   console.log(payrollByState);
     return highestPayrollState;
   };
-
   fetchRTIAUserStatusData = async (partitionKey) => {
     if (!partitionKey) {
       return 0;
@@ -573,7 +556,6 @@ class instanceCountService {
       throw new Error("Error fetching user status data");
     }
   };
-
   rtiaCalculate = async (item) => {
     const obj = {};
     obj["Unique Id"] = item?.user_email_id;
@@ -606,7 +588,6 @@ class instanceCountService {
     console.log(obj);
     return obj;
   };
-
   async downloadRTIAData() {
     const finalResponse = [];
     const params = {
@@ -631,7 +612,6 @@ class instanceCountService {
   //------------RTIA END HERE-----------------//
 
   //------------LIBERTATE START HERE-----------//
-
   libCalculate = async (item) => {
     const obj = {};
     obj["Unique Id"] = item?.user_email_id || "";
@@ -658,7 +638,6 @@ class instanceCountService {
     console.log(obj);
     return obj;
   };
-
   async downloadLibertateData() {
     const libResponse = [];
     const params = {
@@ -692,7 +671,9 @@ class instanceCountService {
       console.error("Error fetching items from DynamoDB:", error);
     }
   }
+  //------------LIBERTATE END HERE-----------//
 
+  //------------Get Instance Submission Count Data-----------//
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
       if (type === "e3") {
