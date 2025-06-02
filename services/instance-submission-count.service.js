@@ -267,8 +267,10 @@ class instanceCountService {
       ? this.payrollCalculation(item?.childrenLoc)
       : 0;
     obj["Created Date"] = item?.uploadTimestamp
-      ? new Date(parseInt(item.uploadTimestamp))
-      : null;
+                    ? moment(Number(item.uploadTimestamp))
+                        .utcOffset("-0500")
+                        .format("M/D/YY")
+                    : "-"
     obj["LossRun"] = item?.workflowData?.data ? "YES" : "NO";
     obj["LossRun Date"] = await this.getPibitOCRdate(item?.user_email_id);
     obj["GoverningState"] =
