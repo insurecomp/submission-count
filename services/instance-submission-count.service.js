@@ -354,7 +354,7 @@ class instanceCountService {
       : "$0";
     obj["Created Date"] = item?.uploadTimestamp
     ? new Date(parseInt(item.uploadTimestamp))
-    : null;
+    : ""
     
     obj["Agent Name"] = item?.modifiedByName || "";
     obj["Agenct Email"] = item?.modifiedBy || "";
