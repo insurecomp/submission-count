@@ -675,6 +675,82 @@ class instanceCountService {
   }
   //------------LIBERTATE END HERE-----------//
 
+  //------------FOURTH START HERE-----------//
+  fetchFourthUserStatusData = async (partitionKey) => {
+    if (!partitionKey) {
+      return 0;
+    }
+    const params = {
+      TableName: "FourthUserStatusTable",
+      KeyConditionExpression: "#id = :user_email_id",
+      ExpressionAttributeNames: {
+        "#id": "user_email_id",
+      },
+      ExpressionAttributeValues: {
+        ":user_email_id": partitionKey,
+      },
+      ScanIndexForward: false,
+      Limit: 1,
+    };
+    try {
+      const data = await docClient.send(new QueryCommand(params)); // Use QueryCommand with send()
+      if (data.Items[0]?.carrier_location_data) {
+        const totalPremium =
+          data.Items[0]?.carrier_location_data
+            ?.total_estimated_annual_premium || 0;
+        return totalPremium;
+      } else {
+        return 0;
+      }
+    } catch (error) {
+      console.error("Error fetching E3 user status data:", error);
+      throw new Error("Error fetching user status data");
+    }
+  };
+
+  fourthCalculate = async (item) => {
+    const obj = {};
+    obj["Unique Id"] = item?.id || "";
+    obj["Created Date"] = item?.created_timestamp
+      ? new Date(parseInt(item.created_timestamp))
+      : null;
+    obj["Total Payroll"] = item?.currProspect?.childrenLoc
+      ? this.payrollCalculation(item?.currProspect?.childrenLoc)
+      : 0;
+    obj["Source"] = item?.isSalesforce ? "Salesforce" : "Insurecomp";
+    obj["Status"] =
+      item?.formStage === "one" || item.formStage === "two"
+        ? "In Progress"
+        : item?.formStage === "three" && item?.isSubmitted
+          ? "Submitted"
+          : "Quote Generated";
+    obj["Total Premium"] = await this.fetchFourthUserStatusData(item?.id);
+    return obj;
+  };
+
+  async downloadFourthData() {
+    const fourthResponse = [];
+    const params = {
+      TableName: "FourthSalesPersonData",
+    };
+
+    try {
+      let data;
+      do {
+        data = await client.send(new ScanCommand(params));
+        for (const item of data.Items) {
+          fourthResponse.push(await this.fourthCalculate(item));
+        }
+        params.ExclusiveStartKey = data.LastEvaluatedKey;
+      } while (typeof data.LastEvaluatedKey !== "undefined");
+      return fourthResponse;
+    } catch (error) {
+      console.error("Error scanning table:", error);
+      throw error;
+    }
+  }
+  //------------FOURTH END HERE-----------//
+
   //------------Get Instance Submission Count Data-----------//
   async getInstanceSubmissionCountData(type, request, reply) {
     try {
@@ -692,6 +768,9 @@ class instanceCountService {
         reply.send(response);
       } else if (type === "libertate") {
         const response = await this.downloadLibertateData();
+        reply.send(response);
+      } else if (type === "fourth") {
+        const response = await this.downloadFourthData();
         reply.send(response);
       }
     } catch (error) {
