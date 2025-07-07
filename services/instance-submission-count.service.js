@@ -718,7 +718,7 @@ class instanceCountService {
     obj["Total Payroll"] = item?.currProspect?.childrenLoc
       ? this.payrollCalculation(item?.currProspect?.childrenLoc)
       : 0;
-    obj["Source"] = item?.isSalesforce ? "Salesforce" : "Insurecomp";
+    obj["Source"] = item?.origin === "salesforce" ? "Salesforce" : "Insurecomp";
     obj["Status"] =
       item?.formStage === "one" || item.formStage === "two"
         ? "In Progress"

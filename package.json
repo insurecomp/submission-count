@@ -21,6 +21,7 @@
     "@fastify/schedule": "^6.0.0",
     "aws-lambda-fastify": "^2.2.0",
     "axios": "^1.8.3",
+    "commitlint": "^19.8.1",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
     "moment": "^2.30.1",
