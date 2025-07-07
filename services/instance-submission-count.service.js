@@ -711,6 +711,7 @@ class instanceCountService {
   fourthCalculate = async (item) => {
     const obj = {};
     obj["Unique Id"] = item?.id || "";
+    obj["CompanyName"] = item?.companyProfile?.companyName?.value || "";
     obj["Created Date"] = item?.created_timestamp
       ? new Date(parseInt(item.created_timestamp))
       : null;
