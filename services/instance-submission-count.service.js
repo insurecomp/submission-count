@@ -227,13 +227,16 @@ class instanceCountService {
       const command = new QueryCommand(params);
       const response = await docClient.send(command);
       const date = response.Items[0]?.createdTimestamp;
-      const e3CreatedDate = date
-      ? new Date(date * 1000)
-      : "";    
+      
+      if (!date) return ""; // Return empty string if no timestamp
+      
+      // Convert Unix timestamp to UTC and format as MM-DD-YYYY
+      const e3CreatedDate = moment.unix(date).utc().format('MM-DD-YYYY');
+      
       return e3CreatedDate;
     } catch (error) {
       console.error("Error fetching items:", error);
-      return [];
+      return "";
     }
   };
   //E3 Coloumn & Row setting
